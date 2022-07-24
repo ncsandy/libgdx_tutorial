@@ -2,7 +2,9 @@ package com.libgdx.bludbourne;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.assets.AssetManager;
+import com.badlogic.gdx.assets.loaders.TextureLoader;
 import com.badlogic.gdx.assets.loaders.resolvers.InternalFileHandleResolver;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.maps.tiled.TiledMap;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 
@@ -13,7 +15,7 @@ public final class Utility {
 
     private static final String TAG = Utility.class.getSimpleName();
 
-    private static InternalFileHandleResolver _filePathResolver =
+    private static final InternalFileHandleResolver _filePathResolver =
             new InternalFileHandleResolver();
 
     public static void unLoadAsset(String assetFilenamePath) {
@@ -79,5 +81,40 @@ public final class Utility {
         }
         return map;
     }
+
+    public static void loadTextureAsset(String textureFilenamePath) {
+        if (textureFilenamePath == null || textureFilenamePath.isEmpty()) {
+            return;
+        }
+
+        //load asset
+        if (_filePathResolver.resolve(textureFilenamePath).exists()) {
+            _assetManager.setLoader(Texture.class, new TextureLoader(_filePathResolver));
+            new TextureLoader(_filePathResolver);
+
+            _assetManager.load(textureFilenamePath, Texture.class);
+            //until adding laoding scrren
+            //just block until loading the map
+
+            _assetManager.finishLoadingAsset(textureFilenamePath);
+        }
+        else {
+            Gdx.app.debug(TAG, "Texture doesn't exist!:" + textureFilenamePath);
+        }
+    }
+
+    public static Texture getTextureAsset(String textureFilenamePath){
+        Texture texture = null;
+
+        // once asset manager is done loading
+        if (_assetManager.isLoaded(textureFilenamePath)) {
+            texture = _assetManager.get(textureFilenamePath, Texture.class);
+        }
+        else {
+            Gdx.app.debug(TAG, "Texture is not loaded:" + textureFilenamePath);
+        }
+        return texture;
+    }
+
 }
 
