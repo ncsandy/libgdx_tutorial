@@ -1,10 +1,13 @@
 package com.libgdx.bludbourne.screens;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
+import com.libgdx.bludbourne.Entity;
 
 public class MainGameScreen implements Screen {
 
@@ -32,15 +35,63 @@ public class MainGameScreen implements Screen {
         _mapMgr = new MapManager();
     }
 
+    private static Entity _player;
+
     @Override
     public void show() {
         //camera setup
+        setupViewport(10,10);
 
+        //get current size
+        _camera = new OrthographicCamera();
+        _camera.setToOrtho(false, VIEWPORT.viewportWidth, VIEWPORT.viewportHeight);
+
+        _mapRenderer = new OrthogonalTiledMapRenderer
+                (_mapMgr.getCurrentMap(), MapManager.UNIT_SCALE);
+        _mapRenderer.setView(_camera);
+
+        Gdx.app.debug(TAG, "UnitScale value is:" + _mapRenderer.getUnitScale());
+
+        _player = new Entity();
+        _player.init(_mapMgr.getPlayerStartUnitScaled().x,
+                _mapMgr.getPlayerStartUnitScaled().y);
+
+        _currentPlayerSprite = _player.getFrameSprite();
+
+        _controller = new PlayerController(_player);
+        Gdx.input.setInputProcessor(_controller);
     }
 
     @Override
     public void render(float delta) {
+        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        //Preferable to lock and center the _camera on player's position
+        _camera.position.set(_currentPlayerSprite.getX(),
+                _currentPlayerSprite.getY(), 0f);
+
+        _camera.update();
+
+        _player.update(delta);
+        _currentPlayerFrame = _player.getFame();
+
+        updatePortalLayerActivation(_player.boundingBox);
+
+        if (!isCollisionWithMapLayer(_player.boundingBox) ) {
+            _player.setNextPositionToCurrent();
+        }
+
+        _controller.update(delta);
+
+        _mapRenderer.setView(_camera);
+        _mapRenderer.render();
+
+        _mapRenderer.getBatch().begin();
+        _mapRenderer.getBatch().draw(_currentPlayerFrame,
+                _currentPlayerSprite.getX(), _currentPlayerSprite.getY(),
+                1,1);
+        _mapRenderer.getBatch().end();
     }
 
     @Override
@@ -65,6 +116,46 @@ public class MainGameScreen implements Screen {
 
     @Override
     public void dispose() {
+        _player.dispose();
+        _controller.dispose();
+        Gdx.input.setInputProcessor(null);
+        _mapRenderer.dispose();
+    }
 
+    private void setupViewport(int width, int height) {
+        //Make the viewport a percentage of the total display area
+        VIEWPORT.virtualWidth = width;
+        VIEWPORT.virtualHeight = height;
+
+        //curent viewport demensions
+        VIEWPORT.viewportWidth = VIEWPORT.virtualWidth;
+        VIEWPORT.viewportHeight = VIEWPORT.virtualHeight;
+
+        //pixel dimensions of display
+        VIEWPORT.physicalHeight = Gdx.graphics.getHeight();
+        VIEWPORT.physicalWidth = Gdx.graphics.getWidth();
+
+        //aspect ratio for current viewport
+
+        VIEWPORT.aspectRatio = (VIEWPORT.virtualWidth / VIEWPORT.virtualHeight);
+
+        //update viewport if there could be skewing
+
+        if (VIEWPORT.physicalWidth / VIEWPORT.physicalHeight >= VIEWPORT.aspectRatio) {
+            //Lettebox left and right
+            VIEWPORT.viewportWidth = VIEWPORT.viewportHeight * (VIEWPORT.physicalWidth/VIEWPORT.physicalHeight);
+            VIEWPORT.viewportHeight = VIEWPORT.virtualHeight;
+        } else {
+            VIEWPORT.viewportWidth = VIEWPORT.virtualWidth;
+            VIEWPORT.viewportHeight = VIEWPORT.viewportWidth *
+                    (VIEWPORT.physicalHeight/VIEWPORT.physicalWidth);
+        }
+
+        Gdx.app.debug(TAG, "WorldRender: virtual: (" +
+                VIEWPORT.virtualWidth + "," + VIEWPORT.viewportHeight + ")" );
+        Gdx.app.debug(TAG, "WorldRenderer: viewport: (" +
+                VIEWPORT.viewportWidth + "," + VIEWPORT.viewportHeight + ")");
+        Gdx.app.debug(TAG, "WorldRenderer: physical (" +
+                VIEWPORT.physicalWidth + "," + VIEWPORT.physicalHeight + ")");
     }
 }
