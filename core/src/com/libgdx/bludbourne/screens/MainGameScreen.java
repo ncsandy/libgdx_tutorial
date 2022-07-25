@@ -6,8 +6,13 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.maps.MapLayer;
+import com.badlogic.gdx.maps.MapObject;
+import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
+import com.badlogic.gdx.math.Rectangle;
 import com.libgdx.bludbourne.Entity;
+import com.libgdx.bludbourne.MapManager;
 
 public class MainGameScreen implements Screen {
 
@@ -31,7 +36,7 @@ public class MainGameScreen implements Screen {
     private OrthographicCamera _camera = null;
     private MapManager _mapMgr;
 
-    public MainGameScreen {
+    public MainGameScreen() {
         _mapMgr = new MapManager();
     }
 
@@ -157,5 +162,56 @@ public class MainGameScreen implements Screen {
                 VIEWPORT.viewportWidth + "," + VIEWPORT.viewportHeight + ")");
         Gdx.app.debug(TAG, "WorldRenderer: physical (" +
                 VIEWPORT.physicalWidth + "," + VIEWPORT.physicalHeight + ")");
+    }
+
+    private boolean isCollisionWithMapLayer(Rectangle boundingBox) {
+        MapLayer mapCollisionLayer = _mapMgr.getCollisionLayer();
+
+        if (mapCollisionLayer == null) {
+            return false;
+        }
+
+        Rectangle rectangle = null;
+
+        for (MapObject object: mapCollisionLayer.getObjects()) {
+            if(object instanceof RectangleMapObject) {
+                rectangle = ((RectangleMapObject)object).getRectangle();
+                if (boundingBox.overlaps(rectangle) ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean updatePortalLayerActivation(Rectangle boundingBox) {
+        MapLayer mapPortalLayer = _mapMgr.getPortalLayer();
+
+        if (mapPortalLayer == null) {
+            return false;
+        }
+
+        Rectangle rectangle = null;
+
+        for (MapObject object: mapPortalLayer.getObjects()) {
+            if(object instanceof RectangleMapObject) {
+                rectangle = ((RectangleMapObject)object).getRectangle();
+                if (boundingBox.overlaps(rectangle)) {
+                    String mapName = object.getName();
+                    if (mapName == null) {
+                        return false;
+                    }
+                    _mapMgr.setClosestStartPositionFromScaledUnits
+                            (_player.getCurrentPosition());
+                    _mapMgr.loadMap(mapName);
+                    _player.init(_mapMgr.getPlayerStartUnitScaled().x,
+                            _mapMgr.getPlayerStartUnitScaled().y);
+                    _mapRenderer.setMap(_mapMgr.getCurrentMap());
+                    Gdx.app.debug(TAG, "Portal Activated");
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
